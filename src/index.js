@@ -23,80 +23,13 @@ app.use(express.urlencoded({ extended: true }));
 app.set('view engine','pug');
 app.use(express.static('public/'));
 
-//moesif
-var moesif = require('moesif-express');
-// 2. Set the options, the only required field is applicationId
-var moesifMiddleware = moesif({
-  applicationId: 'eyJhcHAiOiI1MTk6MTQ3IiwidmVyIjoiMi4wIiwib3JnIjoiMjQwOjIxMCIsImlhdCI6MTU5Mjg3MDQwMH0.rcYbuEeoN8kSUiopSYFy6ZAhThA0ZGaJLsavzWqaOoQ',
-  // Set to false if you don't want to capture req/resp body
-  logBody: true,
-
-  // Optional hook to link API calls to users
-  identifyUser: function (req, res) {
-    return req.user ? req.user.id : undefined;
-  },
-});
-
-// 3. Enable the Moesif middleware to start capturing incoming API Calls
-app.use(moesifMiddleware);
-
 
 //read files
 var fs = require('fs');
 //var http = require('http');
 //var https = require('https');
 
-var path = "../tests/"
-var parsedTotalJson="";
-let test= {};
-const spawn = require('child_process').spawn;
 
-//create the video queue
-//queue allows 2 jobs at a time
-const videoQualityQueue = new Queue('ffmpeg-processing-qualityMetrics', {
-  limiter: {
-    max: 1, 
-    duration: 1000
-  }
-});
-
-const concurrency = 1;
-videoQualityQueue.process(concurrency, function(job, done) {
-    var jobString = JSON.stringify(job);
-    var file = "test_" +job.data.fileID+ ".json";
-    console.log(path+file);
-	console.log("mobile?" +job.data.mobile);
-    var ffmpegPromise = new Promise(function(resolve, reject) {
-		var params = ':flags=bicubic[main];[main][1:v]libvmaf=ssim=true:psnr=true:phone_model=true:log_fmt=json:log_path=';
-		if(!job.data.mobile){
-			params = ':flags=bicubic[main];[main][1:v]libvmaf=ssim=true:psnr=true:log_fmt=json:log_path='
-		}
-		console.log("mobile: " +job.data.mobile);
-		console.log("params: " +params);
-         try {
-    		let ffmpeg = spawn('ffmpeg', ['-i', job.data.testUrl, '-i', job.data.refUrl, '-filter_complex', '[0:v]scale='+job.data.refVideoWidth+'x'+job.data.refVideoHeight+params+path+file, `-f`, 'null', '-']);
-    		console.log("running test id:" +job.data.fileID); 
-    		ffmpeg.stderr.on('data', (err) => {
-            	console.log('err:', new String(err));
-            	
-    		});
-    		ffmpeg.stdout.on('data', function(){ 
-    				console.log('stdout');
-    				resolve("success!");
-    				
-    		 }); 
-    	  }
-    	  catch (Exception){ 
-    			reject("error in promise");
-    	  }
-    	
-    });
-    return ffmpegPromise.then(function(successMessage){
-    		console.log(successMessage);
-    		done();
-    		
-    });
-});
 
 app.get('/',  (req, res) => {
      return res.render('landing');
@@ -128,6 +61,57 @@ app.get('/probe', (req,res) =>{
        //const response = {parsedprobeJson};
        return res.status(200).send(parsedprobeJson);
    });
+   var path = "../tests/"
+var parsedTotalJson="";
+let test= {};
+const spawn = require('child_process').spawn;
+
+//create the video queue
+//queue allows 2 jobs at a time
+const videoQualityQueue = new Queue('ffmpeg-processing-qualityMetrics', {
+  limiter: {
+    max: 1, 
+    duration: 1000
+  }
+});
+
+const concurrency = 1;
+videoQualityQueue.process(concurrency, function(job, done) {
+    var jobString = JSON.stringify(job);
+    var file = "test_" +job.data.fileID+ ".json";
+    console.log(path+file);
+	console.log("mobile?" +job.data.mobile);
+    var ffmpegPromise = new Promise(function(resolve, reject) {
+        var params = ':flags=bicubic[main];[main][1:v]libvmaf=ssim=true:psnr=true:phone_model=true:log_fmt=json:log_path=';
+        if(!job.data.mobile){
+          params = ':flags=bicubic[main];[main][1:v]libvmaf=ssim=true:psnr=true:log_fmt=json:log_path='
+        }
+        console.log("mobile: " +job.data.mobile);
+        console.log("params: " +params);
+            try {
+                  let ffmpeg = spawn('ffmpeg', ['-i', job.data.testUrl, '-i', job.data.refUrl, '-filter_complex', '[0:v]scale='+job.data.refVideoWidth+'x'+job.data.refVideoHeight+params+path+file, `-f`, 'null', '-']);
+                  console.log("running test id:" +job.data.fileID); 
+                  ffmpeg.stderr.on('data', (err) => {
+                        console.log('err:', new String(err));
+                        
+                  });
+                  ffmpeg.stdout.on('data', function(){ 
+                      console.log('stdout');
+                      resolve("success!");
+                      
+                  }); 
+            }
+            catch (Exception){ 
+              reject("error in promise");
+            }
+          
+    });
+    return ffmpegPromise.then(function(successMessage){
+        console.log(successMessage);
+        done();
+    
+    });
+});
        
 });
  
@@ -262,12 +246,12 @@ app.get('/testResults', (req, res) => {
   let filename = "test_" +id+ ".json";
   var result;
   try {
-  result = fs.readFileSync(path +filename, 'utf8');
-} catch (err) {
+    result = fs.readFileSync(path +filename, 'utf8');
+  } catch (err) {
      // no file found - not ready yet
      var inProgress = JSON.parse("{\"statusCode\": 101, \"status\": \"Still processing. Try Again in a few minutes.\"}");
      return res.status(200).send(inProgress);
-}
+  }
 
   var json = JSON.parse(result);
   var videojson = JSON.stringify(parsedTotalJson);
