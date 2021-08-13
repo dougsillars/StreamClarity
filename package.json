@@ -9,7 +9,7 @@
     "express": "^4.17.1",
     "kill-port": "^1.6.0",
     "moesif-express": "^2.9.17",
-    "pug": "^2.0.4",
+    "pug": "^3.0.1",
     "querystring": "^0.2.0",
     "serve-favicon": "^2.5.0",
     "uuid": "^3.3.3"
